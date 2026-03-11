@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesis Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+
+        .table-sm td,
+        .table-sm th {
+            vertical-align: middle;
+        }
+
+        .edge-high {
+            background-color: #d4edda;
+            font-weight: 600;
+        }
+
+        .edge-mid {
+            background-color: #fff3cd;
+        }
+
+        .edge-low {
+            background-color: #f8d7da;
+        }
+
+        .score {
+            font-weight: bold;
+        }
+
+        .badge-waiting {
+            background: #6c757d;
+        }
+
+        .table-responsive {
+            max-height: 75vh;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+
+        .table-responsive table th,
+        .table-responsive table td {
+            white-space: nowrap;
+        }
+
+        textarea {
+            font-family: monospace;
+        }
+
+        .robot-icon {
+            font-size: 1.2rem;
+            margin-right: 5px;
+        }
+
+        .verdict-full {
+            color: #0d6efd;
+        }
+
+        .verdict-attempted {
+            color: #dc3545;
+        }
+
+        .adjustment-icon {
+            font-size: 0.9rem;
+            margin-left: 5px;
+        }
+
+        .adjustment-up {
+            color: #198754;
+        }
+
+        .adjustment-down {
+            color: #dc3545;
+        }
+
+        .form-check-input:checked {
+            background-color: #198754;
+            border-color: #198754;
+        }
+
+        .extracted-container {
+            font-size: 0.85rem;
+            background: #212529;
+            color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .extracted-key {
+            color: #61afef;
+            font-weight: bold;
+        }
+
+        .extracted-value {
+            color: #98c379;
+        }
+
+        .extracted-bool {
+            color: #d19a66;
+        }
+
+        .extracted-num {
+            color: #d19a66;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid mt-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">Acesis</h4>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="refreshData()">Refresh</button>
+                <button class="btn btn-sm btn-outline-success" onclick="downloadAll()">Export JSON</button>
+                <button class="btn btn-sm btn-outline-success" onclick="resetLoop()">Reloop</button>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bookModal">Book
+                    Winner</button>
+                <!-- <a class="btn btn-sm btn-outline-success" href="/data/report/6">Report (6hrs)</a>
+                <a class="btn btn-sm btn-outline-success" href="/data/report/12">Report (12hrs)</a>
+                <a class="btn btn-sm btn-outline-success" href="/data/report/24">Report (24hrs)</a>
+                <a class="btn btn-sm btn-outline-success" href="/data/report/0">Report (All)</a> -->
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#upcomingTab">Upcoming</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pastTab">Recent Past Fixtures</button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+
+            <div class="tab-pane fade show active" id="upcomingTab">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Status</th>
+                                <th>Match</th>
+                                <th>Start Time</th>
+                                <th>Edge</th>
+                                <th>Odds (1X2)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="upcomingBody">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="pastTab">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Status</th>
+                                <th>Match</th>
+                                <th>Time</th>
+                                <th>Edge</th>
+                                <th>Result</th>
+                                <th>Odds (1X2)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pastBody">
+                            <tr>
+                                <td colspan="7" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- BOOK MODAL -->
+    <div class="modal fade" id="bookModal">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <form id="bookForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Book Winners</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+
+                        <div class="mb-3">
+                            <label class="form-label">Limit</label>
+                            <input type="number" id="bookLimit" class="form-control" value="10" min="1">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Minimum Match Edge</label>
+                            <input type="number" id="bookMinScore" class="form-control" value="0.35" min="0" max="1"
+                                step="0.01">
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" id="bookStrict" class="form-check-input">
+                            <label class="form-check-label" for="bookStrict">Strict Mode (LLM Must Match Pick)</label>
+                        </div>
+
+                        <div id="bookFeedback" class="alert d-none"></div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span class="btn-text">Book</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- SHOW MORE MODAL -->
+    <div class="modal fade" id="verdictModal">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">AI Verdict & Analysis</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="verdictLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <div class="mt-2">Fetching AI analysis...</div>
+                    </div>
+                    <div id="verdictContent" class="d-none p-3">
+                        <h6>Reasoning</h6>
+                        <div id="verdictReason" class="alert alert-info small"></div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Edge:</strong> <span id="verdictScore"></span>%
+                            </div>
+                        </div>
+                        <h6>Extracted Data</h6>
+                        <div id="extractedData"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+
+        function resetLoop() {
+            $.get("/data/reloop", {}, function (data) {
+                window.alert(data);
+            });
+        }
+
+        function refreshData() {
+            fetchUpcoming();
+            fetchPast();
+        }
+
+        function fetchUpcoming() {
+            $.get("/data/upcoming", function (data) {
+
+                data.sort((a, b) => b.score - a.score);
+
+                let html = "";
+
+                if (data.length === 0) {
+                    html = `<tr><td colspan="6" class="text-center text-muted">No upcoming fixtures</td></tr>`;
+                }
+
+                data.forEach(f => {
+                    const cls = edgeClass(f.score);
+
+                    let robotIcon = "";
+                    if (f.hasVerdict) {
+                        robotIcon = `<i class="bi bi-robot robot-icon verdict-full" title="Has extended data"></i>`;
+                    } else if (f.llmAttempted) {
+                        robotIcon = `<i class="bi bi-robot robot-icon verdict-attempted" title="LLM Attempted, No Verdict"></i>`;
+                    }
+
+                    let likelyWinnerIcon = "";
+                    if (f.llmWinner == 1) {
+                        likelyWinnerIcon = `<span title="High Confidence Home" style="cursor:help; margin-left: 5px;">1️⃣</span>`;
+                    }
+                    else if(f.llmWinner == 2){
+                        likelyWinnerIcon = `<span title="High Confidence Away" style="cursor:help; margin-left: 5px;">2️⃣</span>`;
+                    }
+
+                    const homeProb = (f.homeScore * 100).toFixed(0);
+                    const awayProb = (f.awayScore * 100).toFixed(0);
+
+                    const showMoreBtn = (f.llmAttempted || f.hasVerdict)
+                        ? `<button class="btn btn-xs btn-outline-primary py-0" style="font-size: 10px;" onclick='showVerdict("${f.eventId}")'>More</button>` 
+                        : "";
+
+                    const activeSwitch = `
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" ${!f.isTurnedOff ? 'checked' : ''} onclick="toggleFix(this, '${f.eventId}')">
+                        </div>
+                    `;
+
+                    html += `
+            <tr class="${cls}">
+                <td class="text-center">${activeSwitch}</td>
+                <td>${robotIcon} ${f.home} <small>(${homeProb}%)</small> vs ${f.away} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
+                <td>${formatTime(f.startTime)}</td>
+                <td>${(f.score * 100).toFixed(1)}%</td>
+                <td>${formatOdds(f.odds)}</td>
+                <td>${showMoreBtn}</td>
+            </tr>
+            `;
+                });
+
+                $("#upcomingBody").html(html);
+            });
+        }
+
+        function toggleFix(el, eventId) {
+            const turnedOff = !el.checked;
+            $.get("/data/toggle-turn-off", { eventId, turnedOff }, function() {
+                // success
+            }).fail(function() {
+                alert("Failed to update status");
+                el.checked = !el.checked;
+            });
+        }
+
+        function showVerdict(eventId) {
+            const modal = new bootstrap.Modal(document.getElementById('verdictModal'));
+            $("#verdictLoading").removeClass("d-none");
+            $("#verdictContent").addClass("d-none");
+            modal.show();
+
+            $.get(`/data/verdict/${eventId}`, function(data) {
+                $("#verdictLoading").addClass("d-none");
+                $("#verdictContent").removeClass("d-none");
+
+                $("#verdictReason").text(data.verdict || "No reasoning available.");
+                $("#verdictScore").text((data.score * 100).toFixed(1));
+                
+                const container = document.getElementById('extractedData');
+                container.innerHTML = "";
+                renderExtractedStats(data.extracted_data, container);
+            }).fail(function() {
+                $("#verdictLoading").html(`<div class="text-danger">Failed to fetch verdict.</div>`);
+            });
+        }
+
+        function renderExtractedStats(data, container) {
+            if (!data) {
+                container.innerHTML = '<div class="text-center text-muted py-3">No statistical data available for this match.</div>';
+                return;
+            }
+
+            const home = data.homeTeamStats || {};
+            const away = data.awayTeamStats || {};
+
+            let html = '<div class="row g-3">';
+
+            // 1. TOURNAMENT HEADER
+            html += `
+                <div class="col-12">
+                    <div class="card bg-dark border-secondary shadow-sm">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="text-info mb-0">
+                                    <i class="bi bi-trophy me-2"></i>${data.leagueContext?.leagueName || 'Tournament'} ${data.leagueContext?.season || ''}
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 2. HEAD TO HEAD
+            if (data.headToHead && data.headToHead.totalMeetings > 0) {
+                html += `
+                    <div class="col-12">
+                        <div class="card bg-dark border-secondary shadow-sm">
+                            <div class="card-body p-3">
+                                <h6 class="text-info mb-3"><i class="bi bi-arrow-left-right me-2"></i>Head to Head (${data.headToHead.totalMeetings} Matches)</h6>
+                                ${renderH2HBar(data.headToHead)}
+                                <div class="d-flex justify-content-between mt-1 small">
+                                    <span class="text-primary">${data.headToHead.homeWins || 0} Wins</span>
+                                    <span class="text-danger">${data.headToHead.awayWins || 0} Wins</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 3. ANALYTICS TABLE
+            const getStat = (team, category, key) => {
+                const stats = team.currentYearStats || team.currentSeasonStats || {};
+                if (category === 'root') return team[key];
+                if (category === 'stats') return stats[key];
+                if (stats[category]) return stats[category][key];
+                return null;
+            };
+
+            const categories = [
+                { label: 'ATP/WTA Rank', fn: (t) => t.rankings?.[0]?.ranking },
+                { label: 'Matches (Season)', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).matches },
+                { label: 'Win Rate', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).performance?.winRate, percent: true },
+                { label: 'Ace Rate', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).serve?.aceRate, percent: true },
+                { label: '1st Serve Win', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).serve?.firstServeWinRate, percent: true },
+                { label: '2nd Serve Win', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).serve?.secondServeWinRate, percent: true },
+                { label: 'BP Conversion', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).pressure?.breakPointConversion, percent: true },
+                { label: 'BP Defense', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).pressure?.breakPointDefense, percent: true },
+                { label: 'Tiebreak Win', fn: (t) => (t.currentYearStats || t.currentSeasonStats || {}).pressure?.tiebreakWinRate, percent: true },
+            ];
+
+            html += `
+                <div class="col-12">
+                    <div class="card bg-dark border-secondary shadow-sm">
+                        <div class="card-body p-2">
+                            <h6 class="text-info p-2 mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Performance Comparison</h6>
+                            <table class="table table-dark table-sm table-borderless mb-0 small v-align-middle">
+                                <thead class="border-bottom border-secondary">
+                                    <tr class="text-secondary">
+                                        <th style="width:35%" class="ps-3">Home</th>
+                                        <th class="text-center" style="width:30%">Metric</th>
+                                        <th class="text-end pe-3" style="width:35%">Away</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+
+            categories.forEach(cat => {
+                let hVal = cat.fn(home);
+                let aVal = cat.fn(away);
+
+                if (cat.percent && typeof hVal === 'number') hVal = (hVal * 100).toFixed(1) + '%';
+                if (cat.percent && typeof aVal === 'number') aVal = (aVal * 100).toFixed(1) + '%';
+                if (typeof hVal === 'number' && !Number.isInteger(hVal)) hVal = hVal.toFixed(2);
+                if (typeof aVal === 'number' && !Number.isInteger(aVal)) aVal = aVal.toFixed(2);
+
+                html += `
+                    <tr>
+                        <td class="ps-3">${hVal ?? '-'}</td>
+                        <td class="text-center text-secondary py-2">${cat.label}</td>
+                        <td class="text-end pe-3">${aVal ?? '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 4. FORM & KEY PLAYERS
+            html += `
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary h-100">
+                        <div class="card-body p-3">
+                            <h7 class="text-info d-block mb-2">Home Form</h7>
+                            <div class="mb-3">${renderForm(home.pregame?.form)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-dark border-secondary h-100 text-end">
+                        <div class="card-body p-3">
+                            <h7 class="text-info d-block mb-2">Away Form</h7>
+                            <div class="mb-3">${renderForm(away.pregame?.form, true)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderH2HBar(h2h) {
+            const total = (h2h.homeWins || 0) + (h2h.draws || 0) + (h2h.awayWins || 0);
+            if (total === 0) return '';
+            
+            return `
+                <div class="progress" style="height: 12px; border-radius: 6px; background: #343a40;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: ${(h2h.homeWins / total * 100)}%" title="Home Wins"></div>
+                    <div class="progress-bar bg-secondary bg-opacity-75" role="progressbar" style="width: ${(h2h.draws / total * 100)}%" title="Draws"></div>
+                    <div class="progress-bar bg-danger" role="progressbar" style="width: ${(h2h.awayWins / total * 100)}%" title="Away Wins"></div>
+                </div>
+            `;
+        }
+
+        function renderForm(formArr, isRight = false) {
+            if (!formArr || !Array.isArray(formArr)) return '<span class="text-muted small">No data</span>';
+            const badges = formArr.map(char => {
+                let cls = "bg-secondary";
+                if (char === 'W') cls = "bg-success";
+                if (char === 'D') cls = "bg-warning text-dark";
+                if (char === 'L') cls = "bg-danger";
+                return `<span class="badge ${cls} p-1" style="width: 22px; font-size: 10px;">${char}</span>`;
+            });
+            if (isRight) badges.reverse();
+            return `<div class="d-flex gap-1 ${isRight ? 'justify-content-end' : ''}">${badges.join('')}</div>`;
+        }
+
+        function renderPlayers(players, isRight = false) {
+            if (!players || !players.length) return '<div class="text-muted small">No player data</div>';
+            
+            // Sort by rating desc
+            const sorted = [...players].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4);
+            
+            return sorted.map(p => `
+                <div class="d-flex justify-content-between align-items-center mb-1 small ${isRight ? 'flex-row-reverse' : ''}">
+                    <span class="text-light text-truncate" style="max-width: 120px;">${p.name}</span>
+                    <span class="badge bg-secondary bg-opacity-25 text-info" style="font-size: 9px;">${p.rating || '?.?'}</span>
+                </div>
+            `).join('');
+        }
+
+        function fetchPast() {
+            $.get("/data/past24", function (data) {
+
+                data.sort((a, b) => b.startTime - a.startTime);
+
+                let html = "";
+
+                if (data.length === 0) {
+                    html = `<tr><td colspan="7" class="text-center text-muted">No past fixtures</td></tr>`;
+                }
+
+                data.forEach(f => {
+                    const cls = edgeClass(f.score);
+
+                    let robotIcon = "";
+                    if (f.hasVerdict) {
+                        robotIcon = `<i class="bi bi-robot robot-icon verdict-full" title="Has extended data"></i>`;
+                    } else if (f.llmAttempted) {
+                        robotIcon = `<i class="bi bi-robot robot-icon verdict-attempted" title="LLM Attempted, No Verdict"></i>`;
+                    }
+
+                    let likelyWinnerIcon = "";
+                    if (f.llmWinner == 1) {
+                        likelyWinnerIcon = `<span title="High Confidence Home" style="cursor:help; margin-left: 5px;">1️⃣</span>`;
+                    }
+                    else if(f.llmWinner == 2){
+                        likelyWinnerIcon = `<span title="High Confidence Away" style="cursor:help; margin-left: 5px;">2️⃣</span>`;
+                    }
+
+                    const homeProb = (f.homeScore * 100).toFixed(0);
+                    const awayProb = (f.awayScore * 100).toFixed(0);
+
+                    const showMoreBtn = (f.llmAttempted || f.hasVerdict)
+                        ? `<button class="btn btn-xs btn-outline-primary py-0" style="font-size: 10px;" onclick='showVerdict("${f.eventId}")'>More</button>`
+                        : "";
+
+                    const activeSwitch = `
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" ${!f.isTurnedOff ? 'checked' : ''} onclick="toggleFix(this, '${f.eventId}')">
+                        </div>
+                    `;
+
+                    const result = (Number.isFinite(f.homeGoals) && Number.isFinite(f.awayGoals))
+                        ? `<span class="score">${f.homeGoals} - ${f.awayGoals}</span>`
+                        : `<span class="badge badge-waiting">Waiting</span>`;
+
+                    html += `
+            <tr class="${cls}">
+                <td class="text-center">${activeSwitch}</td>
+                <td>${robotIcon} ${f.home} <small>(${homeProb}%)</small> vs ${f.away} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
+                <td>${formatTime(f.startTime)}</td>
+                <td>${(f.score * 100).toFixed(1)}%</td>
+                <td>${result}</td>
+                <td>${formatOdds(f.odds)}</td>
+                <td>${showMoreBtn}</td>
+            </tr>
+            `;
+                });
+
+                $("#pastBody").html(html);
+            });
+        }
+
+        function edgeClass(score) {
+            if (score >= 0.15) return "edge-high";
+            if (score >= 0.08) return "edge-mid";
+            return "edge-low";
+        }
+
+        function formatTime(t) {
+            return new Date(t).toLocaleString();
+        }
+
+        function formatOdds(o) {
+            if (!o) return "-";
+            return `H:${o.homeWin ?? '-'} A:${o.awayWin ?? '-'}`;
+        }
+
+        function downloadAll() {
+            window.location.href = "/data/download";
+        }
+
+        $("#bookForm").submit(function (e) {
+            e.preventDefault();
+
+            const limit = $("#bookLimit").val();
+            const minScore = $("#bookMinScore").val();
+            const strict = $("#bookStrict").is(":checked");
+            const feedback = $("#bookFeedback");
+            const btn = $(this).find('button[type="submit"]');
+            const cancelBtn = $(this).find('button[data-bs-dismiss="modal"]');
+
+            setLoading(btn, cancelBtn, true);
+            feedback.removeClass("alert-success alert-danger").addClass("d-none");
+
+            $.get("/data/ftx", { limit, minScore, strict }, function (res) {
+                feedback.addClass("alert-success").removeClass("d-none").text(res || "Booked.");
+            }).fail(function (xhr) {
+                feedback.addClass("alert-danger").removeClass("d-none").text(xhr.responseText || "Booking failed.");
+            }).always(() => {
+                setLoading(btn, cancelBtn, false);
+            });
+        });
+
+        function setLoading(btn, cancelBtn, isLoading) {
+            const spinner = btn.find(".spinner-border");
+            const text = btn.find(".btn-text");
+
+            if (isLoading) {
+                btn.prop("disabled", true);
+                cancelBtn.prop("disabled", true);
+                spinner.removeClass("d-none");
+                // text.addClass("d-none");
+            } else {
+                btn.prop("disabled", false);
+                cancelBtn.prop("disabled", false);
+                spinner.addClass("d-none");
+                // text.removeClass("d-none");
+            }
+        }
+
+        $(document).ready(function () {
+            refreshData();
+            setInterval(refreshData, 60000);
+        });
+
+    </script>
+
+</body>
+
+</html>
