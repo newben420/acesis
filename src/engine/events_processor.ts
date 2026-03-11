@@ -351,13 +351,15 @@ export class EventsProcessor {
                 event_id, game_id, league, home, away, start_time,
                 home_win, away_win,
                 score, home_Score, away_score,
-                result_checked_count
+                result_checked_count,
+                turned_off
             )
             VALUES (
                 @eventId, @gameID, @league, @home, @away, @startTime,
                 @homeWin, @awayWin,
                 @score, @homeScore, @awayScore,
-                @resultCheckedCount
+                @resultCheckedCount,
+                @turnedOff
             )
             ON CONFLICT(event_id) DO UPDATE SET
                 home_win = EXCLUDED.home_win,
@@ -377,6 +379,7 @@ export class EventsProcessor {
             homeScore: fixture.homeScore ?? null,
             awayScore: fixture.awayScore ?? null,
             resultCheckedCount: fixture.resultCheckedCount ?? 0,
+            turnOff: 0,
         };
 
         const result = stmt.run(params);
