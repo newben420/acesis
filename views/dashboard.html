@@ -215,9 +215,26 @@
                                 step="0.01">
                         </div>
 
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" id="bookStrict" class="form-check-input">
-                            <label class="form-check-label" for="bookStrict">Strict Mode (LLM Must Match Pick)</label>
+                        <div class="mb-3">
+                            <label class="form-label d-block">Booking Mode</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="bookMode" id="modeNonStrict" value="non-strict" checked>
+                                <label class="form-check-label" for="modeNonStrict">
+                                    Non Strict (Deterministic score)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="bookMode" id="modeStrict" value="strict">
+                                <label class="form-check-label" for="modeStrict">
+                                    Strict (LLM must confirm pick)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="bookMode" id="modeSuperStrict" value="super-strict">
+                                <label class="form-check-label" for="modeSuperStrict">
+                                    Super Strict (Pick determined by LLM)
+                                </label>
+                            </div>
                         </div>
 
                         <div id="bookFeedback" class="alert d-none"></div>
@@ -627,7 +644,9 @@
 
             const limit = $("#bookLimit").val();
             const minScore = $("#bookMinScore").val();
-            const strict = $("#bookStrict").is(":checked");
+            const mode = $("input[name='bookMode']:checked").val();
+            const strict = mode === "strict";
+            const superStrict = mode === "super-strict";
             const feedback = $("#bookFeedback");
             const btn = $(this).find('button[type="submit"]');
             const cancelBtn = $(this).find('button[data-bs-dismiss="modal"]');
@@ -635,7 +654,7 @@
             setLoading(btn, cancelBtn, true);
             feedback.removeClass("alert-success alert-danger").addClass("d-none");
 
-            $.get("/data/ftx", { limit, minScore, strict }, function (res) {
+            $.get("/data/ftx", { limit, minScore, strict, superStrict }, function (res) {
                 feedback.addClass("alert-success").removeClass("d-none").text(res || "Booked.");
             }).fail(function (xhr) {
                 feedback.addClass("alert-danger").removeClass("d-none").text(xhr.responseText || "Booking failed.");
