@@ -75,7 +75,8 @@ app.get("/data/ftx", async (req, res) => {
     const limit = parseInt(req.query.limit as any) || 100;
     const minScore = parseFloat(req.query.minScore as any) || 0;
     const strict = req.query.strict === 'true' || req.query.strict === '1';
-    res.send(await Booker.bookWinner({ limit, minScore, offset: 0, strict }));
+    const superStrict = req.query.superStrict === 'true' || req.query.superStrict === '1';
+    res.send(await Booker.bookWinner({ limit, minScore, offset: 0, strict, superStrict }));
 });
 
 app.get("/data/reloop", async (req, res) => {

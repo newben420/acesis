@@ -398,11 +398,13 @@ export class Booker {
     offset?: number;
     minScore?: number;
     strict?: boolean;
+    superStrict?: boolean;
   }): Promise<string> => {
     const limit = opts?.limit ?? 20;
     const offset = opts?.offset ?? 0;
     const minScore = opts?.minScore ?? 0;
     const strict = opts?.strict ?? false;
+    const superStrict = opts?.superStrict ?? false;
 
     // Tennis Winner Market IDs (Updated)
     const MARKET_ID_WINNER = "186";
@@ -424,14 +426,22 @@ export class Booker {
       matches = matches.slice(offset, offset + limit);
 
       const selections = matches.map((m) => {
-        // Pick the winner based on highest score
-        const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
-        let outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
+        let outcomeId: string | null = null;
 
-        if (strict) {
-          // In strict mode, llmWinner must match the pick
-          if (statsHomeFav && m.llmWinner !== 1) return null;
-          if (!statsHomeFav && m.llmWinner !== 2) return null;
+        if (superStrict) {
+          if (m.llmWinner === 1) outcomeId = OUTCOME_ID_HOME;
+          else if (m.llmWinner === 2) outcomeId = OUTCOME_ID_AWAY;
+          else return null;
+        } else {
+          // Pick the winner based on highest score
+          const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
+          outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
+
+          if (strict) {
+            // In strict mode, llmWinner must match the pick
+            if (statsHomeFav && m.llmWinner !== 1) return null;
+            if (!statsHomeFav && m.llmWinner !== 2) return null;
+          }
         }
 
         return {
