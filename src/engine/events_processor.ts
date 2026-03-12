@@ -342,7 +342,7 @@ export class EventsProcessor {
         let llmAttempted = 0;
 
         const leagueStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number }> = {};
-        const edgeStats: Record<string, { total: number, correct: number, sortKey: number }> = {};
+        const edgeStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number, sortKey: number }> = {};
 
         for (const f of fixtures) {
             const homeGoals = f.homeGoals as number;
@@ -355,20 +355,20 @@ export class EventsProcessor {
             // League stats init
             if (!leagueStats[f.league]) leagueStats[f.league] = { total: 0, correct: 0, llmTotal: 0, llmCorrect: 0 };
 
+            // Common edge key calculation
+            const edge = Math.abs(homeScore - awayScore);
+            const interval = Math.floor(edge / 0.05) * 5;
+            const edgeKey = `${interval}-${interval + 5}%`;
+            
+            if (!edgeStats[edgeKey]) {
+                edgeStats[edgeKey] = { total: 0, correct: 0, llmTotal: 0, llmCorrect: 0, sortKey: interval };
+            }
+
             // Deterministic
             if (homeScore !== awayScore) {
                 deterministicAttempted++;
                 const detWinner = homeScore > awayScore ? 1 : 2;
                 if (detWinner === actualWinner) deterministicCorrect++;
-                
-                // Dynamic Edge stats (5% intervals)
-                const edge = Math.abs(homeScore - awayScore);
-                const interval = Math.floor(edge / 0.05) * 5;
-                const edgeKey = `${interval}-${interval + 5}%`;
-                
-                if (!edgeStats[edgeKey]) {
-                    edgeStats[edgeKey] = { total: 0, correct: 0, sortKey: interval };
-                }
                 
                 edgeStats[edgeKey].total++;
                 if (detWinner === actualWinner) edgeStats[edgeKey].correct++;
@@ -382,6 +382,10 @@ export class EventsProcessor {
             if (f.llmWinner === 1 || f.llmWinner === 2) {
                 llmAttempted++;
                 if (f.llmWinner === actualWinner) llmCorrect++;
+
+                // Edge stats (LLM)
+                edgeStats[edgeKey].llmTotal++;
+                if (f.llmWinner === actualWinner) edgeStats[edgeKey].llmCorrect++;
 
                 // League stats (LLM)
                 leagueStats[f.league].llmTotal++;
@@ -411,6 +415,14 @@ export class EventsProcessor {
         for (const [key, stats] of sortedEdgeBuckets) {
             if (stats.total > 0) {
                 report += `${key}: ${stats.correct}/${stats.total} (${(stats.correct / stats.total * 100).toFixed(1)}%)\n`;
+            }
+        }
+        report += `\n`;
+
+        report += `ACCURACY BY EDGE (LLM)\n`;
+        for (const [key, stats] of sortedEdgeBuckets) {
+            if (stats.llmTotal > 0) {
+                report += `${key}: ${stats.llmCorrect}/${stats.llmTotal} (${(stats.llmCorrect / stats.llmTotal * 100).toFixed(1)}%)\n`;
             }
         }
         report += `\n`;
