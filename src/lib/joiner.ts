@@ -117,7 +117,8 @@ export const silentCodesJoiner = async (
       return codes;
     }
 
-    return await Booker.bookSporty(uniqueSelections);
+    const res = await Booker.bookSporty(uniqueSelections as any);
+    return res ? res.codes : null;
   }
 
   return codes;

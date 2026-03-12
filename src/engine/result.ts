@@ -56,9 +56,10 @@ export class ResultEngine {
             sportId: `sr:sport:5`,
         }));
         Log.flow([SLUG, `Booking`, `Attempting to book ${selections.length} selection(s) on Sporty...`], WEIGHT);
-        const code = await Booker.bookSporty(selections);
-        if (code) {
-            Log.flow([SLUG, `Booking`, `Success! Code: ${code}`], WEIGHT);
+        const res = await Booker.bookSporty(selections);
+        if (res) {
+            const code = res.codes;
+            Log.flow([SLUG, `Booking`, `Success! Code: ${code} (${res.count} selections @ ${res.totalOdds.toFixed(2)} odds)`], WEIGHT);
             const leastStartTime = Math.min(...waiting.fixtures.map(f => f.startTime));
             const maxStartTime = Math.max(...waiting.fixtures.map(f => f.startTime));
             const start = leastStartTime + ResultEngine.ESTIMATED_EVENT_DURATION_MS;

@@ -8,6 +8,7 @@ type Selection = {
   specifier: string | null;
   marketId: string;
   outcomeId: string;
+  odd?: number;
   [key: string]: any;
 };
 
@@ -147,7 +148,8 @@ export const silentCodesJoiner = async (
       return codes;
     }
 
-    return await Booker.bookSporty(uniqueSelections);
+    const res = await Booker.bookSporty(uniqueSelections);
+    return res ? res.codes : null;
   }
 
   return codes;
@@ -383,14 +385,25 @@ export class Booker {
   // DROP-IN FUNCTION: same signature as your old bookSporty
   // This now returns share codes separated by space if chunking happened.
   // -------------------------------------------------------------------
-  static bookSporty = async (selections: any[]): Promise<string | null> => {
-    const typed = (selections as Selection[]) ?? [];
+  static bookSporty = async (selections: Selection[]): Promise<{ codes: string, count: number, totalOdds: number } | null> => {
+    const typed = selections ?? [];
     if (!typed.length) return null;
 
-    const { codes } = await Booker.bookByBisection(typed);
+    const { codes, bad } = await Booker.bookByBisection(typed);
 
     if (!codes.length) return null;
-    return codes.join(" ");
+
+    const badKeys = new Set(bad.map(selectionKey));
+    const good = typed.filter(s => !badKeys.has(selectionKey(s)));
+    
+    const count = good.length;
+    const totalOdds = good.reduce((acc, current) => acc * (current.odd || 1), 1);
+
+    return {
+      codes: codes.join(" "),
+      count,
+      totalOdds
+    };
   };
 
   static bookWinner = async (opts?: {
@@ -432,14 +445,14 @@ export class Booker {
       const selections = matches.map((m) => {
         let outcomeId: string | null = null;
 
+        const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
+        const predOdds = statsHomeFav ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
+
         if (superStrict) {
           if (m.llmWinner === 1) outcomeId = OUTCOME_ID_HOME;
           else if (m.llmWinner === 2) outcomeId = OUTCOME_ID_AWAY;
           else return null;
         } else {
-          const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
-          const predOdds = statsHomeFav ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
-
           // Odds Filter
           if (predOdds < minOdds) return null;
           if (maxOdds > 0 && predOdds > maxOdds) return null;
@@ -453,19 +466,24 @@ export class Booker {
           }
         }
 
+        const finalOdd = outcomeId === OUTCOME_ID_HOME ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
+
         return {
           eventId: m.eventId,
           specifier: null,
           marketId: MARKET_ID_WINNER,
           outcomeId,
-          sportId: SPORT_ID
+          sportId: SPORT_ID,
+          odd: finalOdd
         };
       }).filter(Boolean) as Selection[];
 
       if (!selections.length) return "No matches met strict criteria.";
 
-      const codes = await Booker.bookSporty(selections);
-      return codes || "Could not book selections.";
+      const res = await Booker.bookSporty(selections);
+      if (!res) return "Could not book selections.";
+
+      return `${res.codes} (${res.count} selections @ ${res.totalOdds.toFixed(2)} odds)`;
     } catch (error) {
       return (error as any).message || "An unknown exception was encountered.";
     }
