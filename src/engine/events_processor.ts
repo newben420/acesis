@@ -379,7 +379,7 @@ export class EventsProcessor {
             homeScore: fixture.homeScore ?? null,
             awayScore: fixture.awayScore ?? null,
             resultCheckedCount: fixture.resultCheckedCount ?? 0,
-            turnOff: 0,
+            turnedOff: 0,
         };
 
         const result = stmt.run(params);
