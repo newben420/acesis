@@ -71,6 +71,20 @@ app.get("/data/download", async (req, res) => {
     }
 });
 
+app.get("/data/performance-report", (req, res) => {
+    const hours = parseInt(req.query.hours as string) || 0;
+    const report = EventsProcessor.generatePerformanceReport(hours);
+
+    if (report) {
+        const filename = `performance_report_${hours === 0 ? 'all' : hours + 'h'}.txt`;
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", "text/plain");
+        res.status(200).send(report);
+    } else {
+        res.status(404).send("Report could not be generated.");
+    }
+});
+
 app.get("/data/ftx", async (req, res) => {
     const limit = parseInt(req.query.limit as any) || 100;
     const minScore = parseFloat(req.query.minScore as any) || 0;

@@ -329,6 +329,96 @@ export class EventsProcessor {
         ) as HistoricalFixture[];
     }
 
+    static generatePerformanceReport = (hours: number): string => {
+        const fixtures = EventsProcessor.getCompletedFixturesWithinHours(hours);
+        if (fixtures.length === 0) {
+            return `No completed fixtures found for the past ${hours === 0 ? 'all time' : hours + ' hours'}.`;
+        }
+
+        let total = fixtures.length;
+        let deterministicCorrect = 0;
+        let deterministicAttempted = 0;
+        let llmCorrect = 0;
+        let llmAttempted = 0;
+
+        const leagueStats: Record<string, { total: number, correct: number }> = {};
+        const edgeStats: Record<string, { total: number, correct: number, sortKey: number }> = {};
+
+        for (const f of fixtures) {
+            const homeGoals = f.homeGoals as number;
+            const awayGoals = f.awayGoals as number;
+            const actualWinner = homeGoals > awayGoals ? 1 : (awayGoals > homeGoals ? 2 : 0);
+            
+            const homeScore = f.homeScore ?? 0;
+            const awayScore = f.awayScore ?? 0;
+
+            // Deterministic
+            if (homeScore !== awayScore) {
+                deterministicAttempted++;
+                const detWinner = homeScore > awayScore ? 1 : 2;
+                if (detWinner === actualWinner) deterministicCorrect++;
+                
+                // Dynamic Edge stats (5% intervals)
+                const edge = Math.abs(homeScore - awayScore);
+                const interval = Math.floor(edge / 0.05) * 5;
+                const edgeKey = `${interval}-${interval + 5}%`;
+                
+                if (!edgeStats[edgeKey]) {
+                    edgeStats[edgeKey] = { total: 0, correct: 0, sortKey: interval };
+                }
+                
+                edgeStats[edgeKey].total++;
+                if (detWinner === actualWinner) edgeStats[edgeKey].correct++;
+            }
+
+            // LLM
+            if (f.llmWinner === 1 || f.llmWinner === 2) {
+                llmAttempted++;
+                if (f.llmWinner === actualWinner) llmCorrect++;
+            }
+
+            // League stats
+            if (!leagueStats[f.league]) leagueStats[f.league] = { total: 0, correct: 0 };
+            leagueStats[f.league].total++;
+            const detWinner = homeScore > awayScore ? 1 : 2;
+            if (detWinner === actualWinner) leagueStats[f.league].correct++;
+        }
+
+        let report = `SYSTEM PERFORMANCE REPORT (${hours === 0 ? 'All Time' : 'Past ' + hours + ' hours'})\n`;
+        report += `System: ${Site.TITLE}\n`;
+        report += `Generated at: ${new Date().toLocaleString()}\n`;
+        report += `==========================================\n\n`;
+        report += `OVERALL SUMMARY\n`;
+        report += `Total Completed Matches: ${total}\n\n`;
+
+        report += `DETERMINISTIC MODEL ACCURACY\n`;
+        report += `Attempted: ${deterministicAttempted}\n`;
+        report += `Correct: ${deterministicCorrect}\n`;
+        report += `Accuracy: ${deterministicAttempted > 0 ? (deterministicCorrect / deterministicAttempted * 100).toFixed(2) : 0}%\n\n`;
+
+        report += `LLM MODEL ACCURACY (High Confidence Picks)\n`;
+        report += `Attempted: ${llmAttempted}\n`;
+        report += `Correct: ${llmCorrect}\n`;
+        report += `Accuracy: ${llmAttempted > 0 ? (llmCorrect / llmAttempted * 100).toFixed(2) : 0}%\n\n`;
+
+        report += `ACCURACY BY EDGE (Deterministic)\n`;
+        const sortedEdgeBuckets = Object.entries(edgeStats).sort((a, b) => a[1].sortKey - b[1].sortKey);
+        for (const [key, stats] of sortedEdgeBuckets) {
+            if (stats.total > 0) {
+                report += `${key}: ${stats.correct}/${stats.total} (${(stats.correct / stats.total * 100).toFixed(1)}%)\n`;
+            }
+        }
+        report += `\n`;
+
+        report += `ACCURACY BY LEAGUE (Deterministic)\n`;
+        const sortedLeagues = Object.entries(leagueStats).sort((a, b) => b[1].total - a[1].total);
+        for (const [league, stats] of sortedLeagues) {
+            report += `${league}: ${stats.correct}/${stats.total} (${stats.total > 0 ? (stats.correct / stats.total * 100).toFixed(1) : 0}%)\n`;
+        }
+
+        return report;
+    }
+
     static updateMatchResult = (
         eventId: string,
         homeGoals: number,

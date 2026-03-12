@@ -119,19 +119,24 @@
 <body>
     <div class="container-fluid mt-4">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center W-100 mb-3">
             <h4 class="mb-0">Acesis</h4>
             <div>
                 <button class="btn btn-sm btn-outline-secondary" onclick="refreshData()">Refresh</button>
                 <button class="btn btn-sm btn-outline-success" onclick="downloadAll()">Export JSON</button>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">Reports</button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="downloadReport(6)">Report (6h)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadReport(12)">Report (12h)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadReport(24)">Report (24h)</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="downloadReport(0)">Report (All)</a></li>
+                    </ul>
+                </div>
                 <button class="btn btn-sm btn-outline-success" onclick="resetLoop()">Reloop</button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteUpcoming()">Delete Upcoming</button>
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bookModal">Book
-                    Winner</button>
-                <!-- <a class="btn btn-sm btn-outline-success" href="/data/report/6">Report (6hrs)</a>
-                <a class="btn btn-sm btn-outline-success" href="/data/report/12">Report (12hrs)</a>
-                <a class="btn btn-sm btn-outline-success" href="/data/report/24">Report (24hrs)</a>
-                <a class="btn btn-sm btn-outline-success" href="/data/report/0">Report (All)</a> -->
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bookModal">Book Winner</button>
             </div>
         </div>
 
@@ -287,7 +292,7 @@
 
     <script>
 
-        function truncateTeamName(name, limit = 7) {
+        function truncateTeamName(name, limit = 3) {
             if (!name) return "";
             if (name.length <= limit) return name;
             return name.substring(0, limit) + "...";
@@ -776,6 +781,10 @@
 
         function downloadAll() {
             window.location.href = "/data/download";
+        }
+
+        function downloadReport(hours) {
+            window.location.href = `/data/performance-report?hours=${hours}`;
         }
 
         $("#bookForm").submit(function (e) {
