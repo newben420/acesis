@@ -397,12 +397,16 @@ export class Booker {
     limit?: number;
     offset?: number;
     minScore?: number;
+    minOdds?: number;
+    maxOdds?: number;
     strict?: boolean;
     superStrict?: boolean;
   }): Promise<string> => {
     const limit = opts?.limit ?? 20;
     const offset = opts?.offset ?? 0;
     const minScore = opts?.minScore ?? 0;
+    const minOdds = opts?.minOdds ?? 1;
+    const maxOdds = opts?.maxOdds ?? 0;
     const strict = opts?.strict ?? false;
     const superStrict = opts?.superStrict ?? false;
 
@@ -433,15 +437,19 @@ export class Booker {
           else if (m.llmWinner === 2) outcomeId = OUTCOME_ID_AWAY;
           else return null;
         } else {
-          // Pick the winner based on highest score
-          const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
-          outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
+        const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
+        const predOdds = statsHomeFav ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
 
-          if (strict) {
-            // In strict mode, llmWinner must match the pick
-            if (statsHomeFav && m.llmWinner !== 1) return null;
-            if (!statsHomeFav && m.llmWinner !== 2) return null;
-          }
+        // Odds Filter
+        if (predOdds < minOdds) return null;
+        if (maxOdds > 0 && predOdds > maxOdds) return null;
+
+        outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
+
+        if (strict) {
+          // In strict mode, llmWinner must match the pick
+          if (statsHomeFav && m.llmWinner !== 1) return null;
+          if (!statsHomeFav && m.llmWinner !== 2) return null;
         }
 
         return {

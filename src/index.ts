@@ -86,11 +86,13 @@ app.get("/data/performance-report", (req, res) => {
 });
 
 app.get("/data/ftx", async (req, res) => {
-    const limit = parseInt(req.query.limit as any) || 100;
+    const limit = parseInt(req.query.limit as any) || 20;
     const minScore = parseFloat(req.query.minScore as any) || 0;
+    const minOdds = parseFloat(req.query.minOdds as any) || 1;
+    const maxOdds = parseFloat(req.query.maxOdds as any) || 0;
     const strict = req.query.strict === 'true' || req.query.strict === '1';
     const superStrict = req.query.superStrict === 'true' || req.query.superStrict === '1';
-    res.send(await Booker.bookWinner({ limit, minScore, offset: 0, strict, superStrict }));
+    res.send(await Booker.bookWinner({ limit, minScore, offset: 0, strict, superStrict, minOdds, maxOdds }));
 });
 
 app.get("/data/reloop", async (req, res) => {
