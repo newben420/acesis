@@ -437,19 +437,20 @@ export class Booker {
           else if (m.llmWinner === 2) outcomeId = OUTCOME_ID_AWAY;
           else return null;
         } else {
-        const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
-        const predOdds = statsHomeFav ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
+          const statsHomeFav = (m.homeScore || 0) >= (m.awayScore || 0);
+          const predOdds = statsHomeFav ? (m.odds.homeWin ?? 0) : (m.odds.awayWin ?? 0);
 
-        // Odds Filter
-        if (predOdds < minOdds) return null;
-        if (maxOdds > 0 && predOdds > maxOdds) return null;
+          // Odds Filter
+          if (predOdds < minOdds) return null;
+          if (maxOdds > 0 && predOdds > maxOdds) return null;
 
-        outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
+          outcomeId = statsHomeFav ? OUTCOME_ID_HOME : OUTCOME_ID_AWAY;
 
-        if (strict) {
-          // In strict mode, llmWinner must match the pick
-          if (statsHomeFav && m.llmWinner !== 1) return null;
-          if (!statsHomeFav && m.llmWinner !== 2) return null;
+          if (strict) {
+            // In strict mode, llmWinner must match the pick
+            if (statsHomeFav && m.llmWinner !== 1) return null;
+            if (!statsHomeFav && m.llmWinner !== 2) return null;
+          }
         }
 
         return {
