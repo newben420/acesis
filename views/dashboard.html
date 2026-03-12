@@ -125,6 +125,7 @@
                 <button class="btn btn-sm btn-outline-secondary" onclick="refreshData()">Refresh</button>
                 <button class="btn btn-sm btn-outline-success" onclick="downloadAll()">Export JSON</button>
                 <button class="btn btn-sm btn-outline-success" onclick="resetLoop()">Reloop</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteUpcoming()">Delete Upcoming</button>
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bookModal">Book
                     Winner</button>
                 <!-- <a class="btn btn-sm btn-outline-success" href="/data/report/6">Report (6hrs)</a>
@@ -286,10 +287,25 @@
 
     <script>
 
+        function truncateTeamName(name, limit = 7) {
+            if (!name) return "";
+            if (name.length <= limit) return name;
+            return name.substring(0, limit) + "...";
+        }
+
         function resetLoop() {
             $.get("/data/reloop", {}, function (data) {
                 window.alert(data);
             });
+        }
+
+        function deleteUpcoming() {
+            if (confirm("Are you sure you want to delete all upcoming fixtures and restart the loop?")) {
+                $.get("/data/delete-upcoming", {}, function (data) {
+                    window.alert(data);
+                    refreshData();
+                });
+            }
         }
 
         function refreshData() {
@@ -342,7 +358,7 @@
                     html += `
             <tr class="${cls}">
                 <td class="text-center">${activeSwitch}</td>
-                <td>${robotIcon} ${f.home} <small>(${homeProb}%)</small> vs ${f.away} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
+                <td title="${f.home} vs ${f.away}">${robotIcon} ${truncateTeamName(f.home)} <small>(${homeProb}%)</small> vs ${truncateTeamName(f.away)} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
                 <td>${formatTime(f.startTime)}</td>
                 <td>${(f.score * 100).toFixed(1)}%</td>
                 <td>${formatOdds(f.odds)}</td>
@@ -380,13 +396,13 @@
                 
                 const container = document.getElementById('extractedData');
                 container.innerHTML = "";
-                renderExtractedStats(data.extracted_data, container);
+                renderExtractedStats(data.extracted_data, container, data.home, data.away);
             }).fail(function() {
                 $("#verdictLoading").html(`<div class="text-danger">Failed to fetch verdict.</div>`);
             });
         }
 
-        function renderExtractedStats(data, container) {
+        function renderExtractedStats(data, container, homeName, awayName) {
             if (!data) {
                 container.innerHTML = '<div class="text-center text-muted py-3">No statistical data available for this match.</div>';
                 return;
@@ -396,6 +412,19 @@
             const away = data.awayTeamStats || {};
 
             let html = '<div class="row g-3">';
+
+            // 0. MATCHUP HEADER
+            if (homeName && awayName) {
+                html += `
+                    <div class="col-12">
+                        <div class="card bg-dark border-secondary shadow-sm">
+                            <div class="card-body p-3 text-center">
+                                <h5 class="text-white mb-0">${homeName} vs ${awayName}</h5>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             // 1. TOURNAMENT HEADER
             html += `
@@ -606,7 +635,7 @@
                     html += `
             <tr class="${cls}">
                 <td class="text-center">${activeSwitch}</td>
-                <td>${robotIcon} ${f.home} <small>(${homeProb}%)</small> vs ${f.away} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
+                <td title="${f.home} vs ${f.away}">${robotIcon} ${truncateTeamName(f.home)} <small>(${homeProb}%)</small> vs ${truncateTeamName(f.away)} <small>(${awayProb}%)</small> ${likelyWinnerIcon}</td>
                 <td>${formatTime(f.startTime)}</td>
                 <td>${(f.score * 100).toFixed(1)}%</td>
                 <td>${result}</td>

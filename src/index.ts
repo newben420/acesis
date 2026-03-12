@@ -84,6 +84,11 @@ app.get("/data/reloop", async (req, res) => {
     res.send(`Loop reset done. Please wait a few seconds/minutes for sync.`);
 });
 
+app.get("/data/delete-upcoming", async (req, res) => {
+    EventsProcessor.deleteAllUpcoming();
+    res.send(`Upcoming fixtures deleted and loop restarted.`);
+});
+
 app.get("/data/verdict/:eventId", (req, res) => {
     const verdict = EventsProcessor.getVerdict(req.params.eventId);
     if (verdict) {

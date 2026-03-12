@@ -227,10 +227,26 @@ export class EventsProcessor {
         return stmt.run(turnedOff ? 1 : 0, eventId).changes > 0;
     };
 
-    static getVerdict = (eventId: string): { extracted_data: any, verdict: string, score: number } | null => {
+    static deleteAllUpcoming = () => {
+        const now = Date.now();
+        // Delete associated AI verdicts first due to foreign key
+        EventsProcessor.db.prepare(`
+            DELETE FROM ai_verdicts
+            WHERE event_id IN (SELECT event_id FROM fixtures WHERE start_time > ?)
+        `).run(now);
+
+        EventsProcessor.db.prepare(`
+            DELETE FROM fixtures
+            WHERE start_time > ?
+        `).run(now);
+
+        EventsProcessor.triggerLoop();
+    };
+
+    static getVerdict = (eventId: string): { extracted_data: any, verdict: string, score: number, home: string, away: string } | null => {
         try {
             const row = EventsProcessor.db.prepare(`
-                SELECT v.*, f.score
+                SELECT v.*, f.score, f.home, f.away
                 FROM ai_verdicts v
                 JOIN fixtures f ON v.event_id = f.event_id
                 WHERE v.event_id = ?
@@ -240,7 +256,9 @@ export class EventsProcessor {
                 return {
                     extracted_data: JSON.parse(row.extracted_data),
                     verdict: row.verdict,
-                    score: row.score
+                    score: row.score,
+                    home: row.home,
+                    away: row.away
                 };
             }
         } catch (e) {
