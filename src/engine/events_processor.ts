@@ -341,7 +341,7 @@ export class EventsProcessor {
         let llmCorrect = 0;
         let llmAttempted = 0;
 
-        const leagueStats: Record<string, { total: number, correct: number }> = {};
+        const leagueStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number }> = {};
         const edgeStats: Record<string, { total: number, correct: number, sortKey: number }> = {};
 
         for (const f of fixtures) {
@@ -351,6 +351,9 @@ export class EventsProcessor {
             
             const homeScore = f.homeScore ?? 0;
             const awayScore = f.awayScore ?? 0;
+
+            // League stats init
+            if (!leagueStats[f.league]) leagueStats[f.league] = { total: 0, correct: 0, llmTotal: 0, llmCorrect: 0 };
 
             // Deterministic
             if (homeScore !== awayScore) {
@@ -369,19 +372,21 @@ export class EventsProcessor {
                 
                 edgeStats[edgeKey].total++;
                 if (detWinner === actualWinner) edgeStats[edgeKey].correct++;
+
+                // League stats (Deterministic)
+                leagueStats[f.league].total++;
+                if (detWinner === actualWinner) leagueStats[f.league].correct++;
             }
 
             // LLM
             if (f.llmWinner === 1 || f.llmWinner === 2) {
                 llmAttempted++;
                 if (f.llmWinner === actualWinner) llmCorrect++;
-            }
 
-            // League stats
-            if (!leagueStats[f.league]) leagueStats[f.league] = { total: 0, correct: 0 };
-            leagueStats[f.league].total++;
-            const detWinner = homeScore > awayScore ? 1 : 2;
-            if (detWinner === actualWinner) leagueStats[f.league].correct++;
+                // League stats (LLM)
+                leagueStats[f.league].llmTotal++;
+                if (f.llmWinner === actualWinner) leagueStats[f.league].llmCorrect++;
+            }
         }
 
         let report = `SYSTEM PERFORMANCE REPORT (${hours === 0 ? 'All Time' : 'Past ' + hours + ' hours'})\n`;
@@ -411,9 +416,24 @@ export class EventsProcessor {
         report += `\n`;
 
         report += `ACCURACY BY LEAGUE (Deterministic)\n`;
-        const sortedLeagues = Object.entries(leagueStats).sort((a, b) => b[1].total - a[1].total);
+        const sortedLeagues = Object.entries(leagueStats)
+            .filter(([_, stats]) => stats.total > 0)
+            .sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total));
         for (const [league, stats] of sortedLeagues) {
-            report += `${league}: ${stats.correct}/${stats.total} (${stats.total > 0 ? (stats.correct / stats.total * 100).toFixed(1) : 0}%)\n`;
+            if (stats.total > 0) {
+                report += `${league}: ${stats.correct}/${stats.total} (${(stats.correct / stats.total * 100).toFixed(1)}%)\n`;
+            }
+        }
+        report += `\n`;
+
+        report += `ACCURACY BY LEAGUE (LLM)\n`;
+        const sortedLeaguesLLM = Object.entries(leagueStats)
+            .filter(([_, stats]) => stats.llmTotal > 0)
+            .sort((a, b) => (b[1].llmCorrect / b[1].llmTotal) - (a[1].llmCorrect / a[1].llmTotal));
+        for (const [league, stats] of sortedLeaguesLLM) {
+            if (stats.llmTotal > 0) {
+                report += `${league}: ${stats.llmCorrect}/${stats.llmTotal} (${(stats.llmCorrect / stats.llmTotal * 100).toFixed(1)}%)\n`;
+            }
         }
 
         return report;

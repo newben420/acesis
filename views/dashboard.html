@@ -292,10 +292,13 @@
 
     <script>
 
-        function truncateTeamName(name, limit = 3) {
+        function truncateTeamName(name) {
             if (!name) return "";
-            if (name.length <= limit) return name;
-            return name.substring(0, limit) + "...";
+            const parts = name.trim().split(/[\s-]+/).filter(p => p.length > 0);
+            if (parts.length > 1) {
+                return parts.map(p => p[0]).join('').toUpperCase();
+            }
+            return name.substring(0, 3).toUpperCase();
         }
 
         function resetLoop() {
