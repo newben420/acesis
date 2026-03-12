@@ -342,7 +342,7 @@ export class EventsProcessor {
         let llmAttempted = 0;
 
         const leagueStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number }> = {};
-        const edgeStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number, sortKey: number }> = {};
+        const edgeStats: Record<string, { total: number, correct: number, llmTotal: number, llmCorrect: number, totalOdds: number, profit: number, sortKey: number }> = {};
 
         for (const f of fixtures) {
             const homeGoals = f.homeGoals as number;
@@ -361,17 +361,28 @@ export class EventsProcessor {
             const edgeKey = `${interval}-${interval + 5}%`;
             
             if (!edgeStats[edgeKey]) {
-                edgeStats[edgeKey] = { total: 0, correct: 0, llmTotal: 0, llmCorrect: 0, sortKey: interval };
+                edgeStats[edgeKey] = { total: 0, correct: 0, llmTotal: 0, llmCorrect: 0, totalOdds: 0, profit: 0, sortKey: interval };
             }
 
             // Deterministic
             if (homeScore !== awayScore) {
                 deterministicAttempted++;
                 const detWinner = homeScore > awayScore ? 1 : 2;
+                const predOdds = detWinner === 1 ? (f.odds.homeWin ?? 0) : (f.odds.awayWin ?? 0);
+
                 if (detWinner === actualWinner) deterministicCorrect++;
                 
                 edgeStats[edgeKey].total++;
-                if (detWinner === actualWinner) edgeStats[edgeKey].correct++;
+                if (detWinner === actualWinner) {
+                    edgeStats[edgeKey].correct++;
+                    if (predOdds > 0) {
+                        edgeStats[edgeKey].profit += (predOdds - 1);
+                        edgeStats[edgeKey].totalOdds += predOdds;
+                    }
+                } else {
+                    edgeStats[edgeKey].profit -= 1;
+                    if (predOdds > 0) edgeStats[edgeKey].totalOdds += predOdds;
+                }
 
                 // League stats (Deterministic)
                 leagueStats[f.league].total++;
@@ -410,11 +421,13 @@ export class EventsProcessor {
         report += `Correct: ${llmCorrect}\n`;
         report += `Accuracy: ${llmAttempted > 0 ? (llmCorrect / llmAttempted * 100).toFixed(2) : 0}%\n\n`;
 
-        report += `ACCURACY BY EDGE (Deterministic)\n`;
+        report += `ACCURACY & ODDS ANALYSIS BY EDGE (Deterministic)\n`;
         const sortedEdgeBuckets = Object.entries(edgeStats).sort((a, b) => a[1].sortKey - b[1].sortKey);
         for (const [key, stats] of sortedEdgeBuckets) {
             if (stats.total > 0) {
-                report += `${key}: ${stats.correct}/${stats.total} (${(stats.correct / stats.total * 100).toFixed(1)}%)\n`;
+                const avgOdds = stats.totalOdds / stats.total;
+                const roi = (stats.profit / stats.total) * 100;
+                report += `${key}: ${stats.correct}/${stats.total} (${(stats.correct / stats.total * 100).toFixed(1)}%) | Avg Odds: ${avgOdds.toFixed(2)} | ROI: ${roi.toFixed(1)}%\n`;
             }
         }
         report += `\n`;
