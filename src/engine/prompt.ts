@@ -60,6 +60,7 @@ export class PromptEngine {
 
             `- Choose winner: 1 or winner: 2 ONLY if multiple pillars align clearly.`,
             `- If both players look competitive or data is inconclusive, return winner: 0.`,
+            `- Refrain from making a decision (return winner: 0) if the statistical data is heavily one-sided or insufficient for a fair comparison (e.g., pregame form is available for only one player and missing for the other).`,
             `- Be conservative: avoid guessing when edge is weak.`,
 
             ``,
